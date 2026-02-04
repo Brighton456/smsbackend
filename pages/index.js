@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import { useState } from "react";
 import { supabase } from "../lib/supabase";
 
@@ -7,6 +8,10 @@ function StatusBadge({ status }) {
 
 export default function Dashboard({ queued, sent, failed, stats }) {
   const [resendStatus, setResendStatus] = useState(null);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("all");
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "";
+  const endpoint = (path) => (baseUrl ? `${baseUrl}${path}` : path);
 
   const handleResend = async (id) => {
     setResendStatus("Sending...");
@@ -25,6 +30,39 @@ export default function Dashboard({ queued, sent, failed, stats }) {
     setTimeout(() => setResendStatus(null), 3000);
   };
 
+  const filteredQueued = useMemo(() => {
+    return queued.filter((item) => {
+      const matchesSearch =
+        item.phone.includes(search) || item.message.toLowerCase().includes(search.toLowerCase());
+      return matchesSearch;
+    });
+  }, [queued, search]);
+
+  const filteredFailed = useMemo(() => {
+    return failed.filter((item) => {
+      const matchesSearch =
+        item.phone.includes(search) || item.message.toLowerCase().includes(search.toLowerCase());
+      if (filter === "retryable") {
+        return matchesSearch && item.retry_count < 3;
+      }
+      return matchesSearch;
+    });
+  }, [failed, search, filter]);
+
+  return (
+    <main>
+      <header className="hero">
+        <div>
+          <h1>SMS Operations Command Center</h1>
+          <p>Real-time visibility into webhook traffic, SMS queues, and delivery performance.</p>
+        </div>
+        <div className="toolbar">
+          <span className="pill">Webhook: {endpoint("/api/sms-webhook")}</span>
+          <span className="pill">Queue: {endpoint("/api/get-sms")}</span>
+          <span className="pill">Confirm: {endpoint("/api/confirm-sms")}</span>
+          <span className="pill">Resend: {endpoint("/api/resend-sms")}</span>
+        </div>
+        <small>Set NEXT_PUBLIC_BASE_URL to show full endpoint URLs in production.</small>
   return (
     <main>
       <header>
@@ -37,6 +75,23 @@ export default function Dashboard({ queued, sent, failed, stats }) {
       <section>
         <h2>Analytics</h2>
         <div className="grid">
+          <div className="card card-accent">
+            <span className="card-label">Total SMS (7 days)</span>
+            <strong>{stats.total}</strong>
+            <small>All queue activity captured</small>
+          </div>
+          <div className="card card-accent-green">
+            <span className="card-label">Success Rate</span>
+            <strong>{stats.successRate}%</strong>
+            <small>Delivered confirmations</small>
+          </div>
+          <div className="card card-accent-amber">
+            <span className="card-label">Failure Rate</span>
+            <strong>{stats.failureRate}%</strong>
+            <small>Needs attention</small>
+          </div>
+          <div className="card card-accent-purple">
+            <span className="card-label">Top Recipients</span>
           <div className="card">
             <h3>Total SMS (7 days)</h3>
             <strong>{stats.total}</strong>
@@ -58,6 +113,28 @@ export default function Dashboard({ queued, sent, failed, stats }) {
             </ol>
           </div>
         </div>
+        <div className="split">
+          <div>
+            <h3>SMS Volume Per Day</h3>
+            <div className="chart">
+              {stats.volume.map((day) => (
+                <div
+                  key={day.date}
+                  className="chart-bar"
+                  style={{ height: `${Math.max(day.count * 12, 6)}px` }}
+                  title={`${day.date}: ${day.count}`}
+                />
+              ))}
+            </div>
+          </div>
+          <div className="card">
+            <h3>Delivery Watchlist</h3>
+            <ul>
+              <li>Queued: {stats.queueCount}</li>
+              <li>Sent: {stats.sentCount}</li>
+              <li>Failed: {stats.failedCount}</li>
+            </ul>
+            <p>Retry capacity available: {Math.max(0, 3 - stats.failedCount)}</p>
         <div>
           <h3>SMS Volume Per Day</h3>
           <div className="chart">
@@ -75,6 +152,14 @@ export default function Dashboard({ queued, sent, failed, stats }) {
 
       <section>
         <h2>Queued Messages</h2>
+        <div className="toolbar">
+          <input
+            placeholder="Search by phone or text"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+          <button className="outline" onClick={() => setSearch("")}>Clear</button>
+        </div>
         <table>
           <thead>
             <tr>
@@ -84,6 +169,7 @@ export default function Dashboard({ queued, sent, failed, stats }) {
             </tr>
           </thead>
           <tbody>
+            {filteredQueued.map((item) => (
             {queued.map((item) => (
               <tr key={item.id}>
                 <td>{item.phone}</td>
@@ -119,6 +205,12 @@ export default function Dashboard({ queued, sent, failed, stats }) {
 
       <section>
         <h2>Failed Messages</h2>
+        <div className="toolbar">
+          <select value={filter} onChange={(event) => setFilter(event.target.value)}>
+            <option value="all">All failures</option>
+            <option value="retryable">Retryable only</option>
+          </select>
+        </div>
         <table>
           <thead>
             <tr>
@@ -129,6 +221,7 @@ export default function Dashboard({ queued, sent, failed, stats }) {
             </tr>
           </thead>
           <tbody>
+            {filteredFailed.map((item) => (
             {failed.map((item) => (
               <tr key={item.id}>
                 <td>{item.phone}</td>
@@ -212,6 +305,10 @@ export async function getServerSideProps() {
         successRate: totals ? Math.round((successCount / totals) * 100) : 0,
         failureRate: totals ? Math.round((failureCount / totals) * 100) : 0,
         topRecipients,
+        volume,
+        queueCount: queued.length,
+        sentCount: sent.length,
+        failedCount: failed.length
         volume
       }
     }
