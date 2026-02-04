@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useState } from "react";
 import { supabase } from "../lib/supabase";
 
 function StatusBadge({ status }) {
@@ -62,6 +63,11 @@ export default function Dashboard({ queued, sent, failed, stats }) {
           <span className="pill">Resend: {endpoint("/api/resend-sms")}</span>
         </div>
         <small>Set NEXT_PUBLIC_BASE_URL to show full endpoint URLs in production.</small>
+  return (
+    <main>
+      <header>
+        <h1>SMS Operations Dashboard</h1>
+        <p>Monitor and manage transactional SMS delivery.</p>
       </header>
 
       {resendStatus && <div className="notice">{resendStatus}</div>}
@@ -86,6 +92,20 @@ export default function Dashboard({ queued, sent, failed, stats }) {
           </div>
           <div className="card card-accent-purple">
             <span className="card-label">Top Recipients</span>
+          <div className="card">
+            <h3>Total SMS (7 days)</h3>
+            <strong>{stats.total}</strong>
+          </div>
+          <div className="card">
+            <h3>Success Rate</h3>
+            <strong>{stats.successRate}%</strong>
+          </div>
+          <div className="card">
+            <h3>Failure Rate</h3>
+            <strong>{stats.failureRate}%</strong>
+          </div>
+          <div className="card">
+            <h3>Top Recipients</h3>
             <ol>
               {stats.topRecipients.map((recipient) => (
                 <li key={recipient.phone}>{recipient.phone} ({recipient.count})</li>
@@ -115,6 +135,17 @@ export default function Dashboard({ queued, sent, failed, stats }) {
               <li>Failed: {stats.failedCount}</li>
             </ul>
             <p>Retry capacity available: {Math.max(0, 3 - stats.failedCount)}</p>
+        <div>
+          <h3>SMS Volume Per Day</h3>
+          <div className="chart">
+            {stats.volume.map((day) => (
+              <div
+                key={day.date}
+                className="chart-bar"
+                style={{ height: `${Math.max(day.count * 12, 6)}px` }}
+                title={`${day.date}: ${day.count}`}
+              />
+            ))}
           </div>
         </div>
       </section>
@@ -139,6 +170,7 @@ export default function Dashboard({ queued, sent, failed, stats }) {
           </thead>
           <tbody>
             {filteredQueued.map((item) => (
+            {queued.map((item) => (
               <tr key={item.id}>
                 <td>{item.phone}</td>
                 <td>{item.message}</td>
@@ -190,6 +222,7 @@ export default function Dashboard({ queued, sent, failed, stats }) {
           </thead>
           <tbody>
             {filteredFailed.map((item) => (
+            {failed.map((item) => (
               <tr key={item.id}>
                 <td>{item.phone}</td>
                 <td>{item.message}</td>
@@ -276,6 +309,7 @@ export async function getServerSideProps() {
         queueCount: queued.length,
         sentCount: sent.length,
         failedCount: failed.length
+        volume
       }
     }
   };
