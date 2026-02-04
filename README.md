@@ -19,7 +19,6 @@ SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
 SUPABASE_JWT_SECRET=
 API_KEY=
-NEXT_PUBLIC_BASE_URL=
 OPENAI_API_KEY=
 OPENAI_MODEL=gpt-3.5-turbo
 HF_API_KEY=
@@ -77,18 +76,6 @@ Resets status to `queued` and `retry_count` to 0.
 ## Dashboard
 
 Visit `/` to view analytics, queues, and resend failed messages. The dashboard uses `SUPABASE_SERVICE_ROLE_KEY`, so keep it server-side only.
-
-## Connect Your Phone (SMSSync)
-
-1. Install **SMSSync** on your Android phone and grant SMS permissions.
-2. In SMSSync settings, set the **Server URL** to your Vercel deployment:
-   - `https://<vercel-app>.vercel.app/api/get-sms`
-3. Set the **Confirm URL** to:
-   - `https://<vercel-app>.vercel.app/api/confirm-sms`
-4. Add the header `x-api-key: <API_KEY>` (or use a Supabase JWT if configured).
-5. Test by triggering a Supabase webhook. Messages should appear in the dashboard queued list and then confirm as sent/failed.
-
-If you want to expose full endpoint URLs in the dashboard hero header, set `NEXT_PUBLIC_BASE_URL` (e.g., `https://<vercel-app>.vercel.app`).
 
 ## Supabase Webhook Setup
 
